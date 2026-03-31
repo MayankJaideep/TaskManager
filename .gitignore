@@ -1,0 +1,21 @@
+# Java/Maven
+app/target/
+app/.mvn/wrapper/maven-wrapper.jar
+app/.idea/
+app/*.iml
+app/bin/
+
+# Node/React
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment/Secrets
+.env
+.env.local
+**/application.yml # Only ignore if it contains secrets; for now we have a public placeholder
+
+# OS
+.DS_Store
+Thumbs.db
+*.dmg
