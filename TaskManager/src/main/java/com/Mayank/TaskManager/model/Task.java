@@ -13,6 +13,7 @@ public class Task {
     private String description;
     private LocalDateTime dueDate;
     private boolean completed;
+    private String userId; // Link to User
 
     // Default constructor
     public Task() {}
@@ -56,5 +57,13 @@ public class Task {
 
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 }
