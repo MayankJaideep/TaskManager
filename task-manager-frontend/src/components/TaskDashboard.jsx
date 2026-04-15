@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import api, { setupAxiosInterceptors } from '../api/axiosConfig';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
-import { CheckCircle2, LogOut } from 'lucide-react';
+import { CheckCircle2, LogOut, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 function TaskDashboard() {
   const [tasks, setTasks] = useState([]);
@@ -22,8 +22,8 @@ function TaskDashboard() {
 
   const fetchTasks = async () => {
     try {
-      const response = await api.get('/tasks');
-      setTasks(response.data);
+      const response = await api.get('/tasks?page=0&size=20');
+      setTasks(response.data.content || []);
     } catch (error) {
       console.error("Error fetching tasks:", error);
     }
@@ -44,6 +44,24 @@ function TaskDashboard() {
       fetchTasks();
     } catch (error) {
       console.error("Error saving task:", error);
+    }
+  };
+
+  const handleApprove = async (taskId) => {
+    try {
+      await api.put(`/tasks/${taskId}/approve`);
+      fetchTasks();
+    } catch (error) {
+      console.error("Error approving task:", error);
+    }
+  };
+
+  const handleReject = async (taskId) => {
+    try {
+      await api.put(`/tasks/${taskId}/reject`);
+      fetchTasks();
+    } catch (error) {
+      console.error("Error rejecting task:", error);
     }
   };
 
@@ -81,9 +99,16 @@ function TaskDashboard() {
           </div>
           <p>Welcome back, {user?.username}!</p>
         </div>
-        <button onClick={handleLogout} className="btn" style={{backgroundColor: '#e74c3c', display: 'flex', gap: '0.5rem'}}>
-          <LogOut size={16} /> Logout
-        </button>
+        <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+          {user?.roles?.includes('ROLE_CHECKER') && (
+            <Link to="/pending" className="btn" style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+              <ClipboardList size={16} /> Pending
+            </Link>
+          )}
+          <button onClick={handleLogout} className="btn" style={{backgroundColor: '#e74c3c', display: 'flex', gap: '0.5rem'}}>
+            <LogOut size={16} /> Logout
+          </button>
+        </div>
       </header>
 
       <main>
@@ -104,6 +129,8 @@ function TaskDashboard() {
           onEdit={(t) => setEditingTask(t)} 
           onDelete={handleDelete}
           onToggleComplete={handleToggleComplete}
+          onApprove={handleApprove}
+          onReject={handleReject}
         />
       </main>
     </>

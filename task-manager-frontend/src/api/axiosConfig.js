@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 const api = axios.create({
     baseURL: 'http://localhost:8080/api',
@@ -7,6 +8,8 @@ const api = axios.create({
         'Content-Type': 'application/json'
     }
 });
+
+export const generateIdempotencyKey = () => uuidv4();
 
 let isRefreshing = false;
 let failedQueue = [];
@@ -30,6 +33,10 @@ export const setupAxiosInterceptors = (getToken, updateToken, logout) => {
             const token = getToken();
             if (token) {
                 config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            // Add Idempotency-Key for POST/PUT/DELETE to avoid duplicate processing
+            if (['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {
+                config.headers['Idempotency-Key'] = generateIdempotencyKey();
             }
             return config;
         },

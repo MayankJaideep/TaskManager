@@ -1,7 +1,10 @@
 import React from 'react';
-import { Pencil, Trash2, Calendar, Check } from 'lucide-react';
+import { Pencil, Trash2, Calendar, Check, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete }) {
+export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete, onApprove, onReject }) {
+    const { user } = useAuth();
+    const isChecker = user?.roles?.includes('ROLE_CHECKER');
     
     if (tasks.length === 0) {
         return (
@@ -15,7 +18,32 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete }) 
         if (!dateStr) return '';
         const date = new Date(dateStr);
         return date.toLocaleString();
-    }
+    };
+
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'APPROVED':
+                return <CheckCircle size={16} color="green" />;
+            case 'REJECTED':
+                return <XCircle size={16} color="red" />;
+            case 'PENDING':
+            default:
+                return <Clock size={16} color="orange" />;
+        }
+    };
+
+    const getStatusBadge = (status) => {
+        const color = {
+            APPROVED: 'green',
+            REJECTED: 'red',
+            PENDING: 'orange'
+        }[status] || 'gray';
+        return (
+            <span className="badge" style={{ backgroundColor: `var(--${color})`, color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                {getStatusIcon(status)} {status}
+            </span>
+        );
+    };
 
     return (
         <div className="task-list">
@@ -37,7 +65,8 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete }) 
                         <h3 className="task-title">{task.title}</h3>
                         {task.description && <p className="task-desc">{task.description}</p>}
                         
-                        <div className="task-meta">
+                        <div className="task-meta" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>
+                            {getStatusBadge(task.approvalStatus)}
                             {task.dueDate && (
                                 <span className="badge">
                                     <Calendar size={14} />
@@ -47,7 +76,17 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete }) 
                         </div>
                     </div>
 
-                    <div className="task-actions">
+                    <div className="task-actions" style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                        {isChecker && task.approvalStatus === 'PENDING' && (
+                            <>
+                                <button className="btn-icon" onClick={() => onApprove(task.id)} title="Approve Task" style={{backgroundColor: 'green', color: 'white'}}>
+                                    <CheckCircle size={18} />
+                                </button>
+                                <button className="btn-icon" onClick={() => onReject(task.id)} title="Reject Task" style={{backgroundColor: 'red', color: 'white'}}>
+                                    <XCircle size={18} />
+                                </button>
+                            </>
+                        )}
                         <button className="btn-icon" onClick={() => onEdit(task)} title="Edit Task">
                             <Pencil size={18} />
                         </button>

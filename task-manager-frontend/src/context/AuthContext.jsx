@@ -11,22 +11,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Upon application start, we can check if we have a refresh token by hitting /refresh
-        const initializeAuth = async () => {
-            try {
-                const response = await api.post('/auth/refresh');
-                const { token: accessToken, id, username, email, roles } = response.data;
-                setToken(accessToken);
-                setUser({ id, username, email, roles });
-            } catch (error) {
-                // If it fails, not logged in
-                console.log("Not initially authenticated");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        initializeAuth();
+        setLoading(false);
     }, []);
 
     const login = (data) => {

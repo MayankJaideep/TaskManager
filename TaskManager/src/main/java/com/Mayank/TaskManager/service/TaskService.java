@@ -1,12 +1,26 @@
 package com.Mayank.TaskManager.service;
 
+import com.Mayank.TaskManager.exception.IdempotencyException;
+import com.Mayank.TaskManager.exception.ResourceNotFoundException;
+import com.Mayank.TaskManager.model.ApprovalStatus;
+import com.Mayank.TaskManager.model.IdempotencyRecord;
 import com.Mayank.TaskManager.model.Task;
+import com.Mayank.TaskManager.model.TaskOperation;
 import com.Mayank.TaskManager.repository.TaskRepository;
+import com.Mayank.TaskManager.dto.response.PageResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class TaskService {
@@ -14,39 +28,145 @@ public class TaskService {
     @Autowired
     private TaskRepository taskRepository;
 
-    public List<Task> findAllByUserId(String userId) {
-        return taskRepository.findByUserId(userId);
+    @Autowired
+    private AuditService auditService;
+
+    @Autowired
+    private IdempotencyService idempotencyService;
+
+    public PageResponse<Task> findAllByUserId(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Task> taskPage = taskRepository.findByUserIdAndDeletedFalse(userId, pageable);
+        return new PageResponse<>(taskPage.getContent(), taskPage.getNumber(), taskPage.getSize(), taskPage.getTotalElements());
     }
 
+    @Cacheable(value = "tasks", key = "#id + ':' + #userId")
     public Task findByIdAndUserId(String id, String userId) {
-        Optional<Task> task = taskRepository.findById(id);
+        Optional<Task> task = taskRepository.findByIdAndDeletedFalse(id);
         if (task.isPresent() && task.get().getUserId().equals(userId)) {
             return task.get();
         }
         return null;
     }
 
-    public Task create(Task task, String userId) {
-        task.setUserId(userId);
-        return taskRepository.save(task);
+    public PageResponse<Task> findPendingTasks(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Task> taskPage = taskRepository.findByApprovalStatusAndDeletedFalse(ApprovalStatus.PENDING, pageable);
+        return new PageResponse<>(taskPage.getContent(), taskPage.getNumber(), taskPage.getSize(), taskPage.getTotalElements());
     }
 
-    public Task update(String id, Task taskDetails, String userId) {
+    public Task create(Task task, String userId, String idempotencyKey) {
+        System.out.println("[TaskService.create] userId: " + userId);
+        if (idempotencyKey != null) {
+            Optional<IdempotencyRecord> existing = idempotencyService.getRecord(idempotencyKey);
+            if (existing.isPresent() && !idempotencyService.isExpired(existing.get())) {
+                throw new IdempotencyException("Duplicate request detected");
+            }
+        }
+        String transactionId = UUID.randomUUID().toString();
+        task.setUserId(userId);
+        task.setApprovalStatus(ApprovalStatus.PENDING);
+        task.setTransactionId(transactionId);
+        Task saved = taskRepository.save(task);
+        System.out.println("[TaskService.create] saved task with userId: " + saved.getUserId() + ", taskId: " + saved.getId());
+        auditService.log(saved.getId(), userId, TaskOperation.CREATE, ApprovalStatus.PENDING, transactionId, "Task created pending approval");
+        if (idempotencyKey != null) {
+            idempotencyService.saveRecord(idempotencyKey, userId, hashTask(saved));
+        }
+        return saved;
+    }
+
+    @CacheEvict(value = "tasks", key = "#id + ':' + #userId")
+    public Task update(String id, Task taskDetails, String userId, String idempotencyKey) {
+        if (idempotencyKey != null) {
+            Optional<IdempotencyRecord> existing = idempotencyService.getRecord(idempotencyKey);
+            if (existing.isPresent() && !idempotencyService.isExpired(existing.get())) {
+                throw new IdempotencyException("Duplicate request detected");
+            }
+        }
         Task task = findByIdAndUserId(id, userId);
         if (task != null) {
+            String transactionId = UUID.randomUUID().toString();
             task.setTitle(taskDetails.getTitle());
             task.setDescription(taskDetails.getDescription());
             task.setDueDate(taskDetails.getDueDate());
             task.setCompleted(taskDetails.isCompleted());
-            return taskRepository.save(task);
+            task.setApprovalStatus(ApprovalStatus.PENDING);
+            task.setTransactionId(transactionId);
+            Task saved = taskRepository.save(task);
+            auditService.log(saved.getId(), userId, TaskOperation.UPDATE, ApprovalStatus.PENDING, transactionId, "Task updated pending approval");
+            if (idempotencyKey != null) {
+                idempotencyService.saveRecord(idempotencyKey, userId, hashTask(saved));
+            }
+            return saved;
+        }
+        throw new ResourceNotFoundException("Task not found or access denied");
+    }
+
+    @CacheEvict(value = "tasks", key = "#id + ':' + #userId")
+    public void delete(String id, String userId, String idempotencyKey) {
+        if (idempotencyKey != null) {
+            Optional<IdempotencyRecord> existing = idempotencyService.getRecord(idempotencyKey);
+            if (existing.isPresent() && !idempotencyService.isExpired(existing.get())) {
+                throw new IdempotencyException("Duplicate request detected");
+            }
+        }
+        Task task = findByIdAndUserId(id, userId);
+        if (task != null) {
+            String transactionId = UUID.randomUUID().toString();
+            task.setDeleted(true);
+            task.setApprovalStatus(ApprovalStatus.PENDING);
+            task.setTransactionId(transactionId);
+            taskRepository.save(task);
+            auditService.log(id, userId, TaskOperation.DELETE, ApprovalStatus.PENDING, transactionId, "Task soft delete pending approval");
+            if (idempotencyKey != null) {
+                idempotencyService.saveRecord(idempotencyKey, userId, hashTask(task));
+            }
+        } else {
+            throw new ResourceNotFoundException("Task not found or access denied");
+        }
+    }
+
+    @CacheEvict(value = "tasks", key = "#id + ':' + #checkerId")
+    public Task approve(String id, String checkerId) {
+        Optional<Task> opt = taskRepository.findByIdAndDeletedFalse(id);
+        if (opt.isPresent() && opt.get().getApprovalStatus() == ApprovalStatus.PENDING) {
+            Task task = opt.get();
+            task.setApprovalStatus(ApprovalStatus.APPROVED);
+            task.setApprovedBy(checkerId);
+            task.setApprovedAt(java.time.LocalDateTime.now());
+            Task saved = taskRepository.save(task);
+            auditService.log(id, checkerId, TaskOperation.APPROVE, ApprovalStatus.APPROVED, task.getTransactionId(), "Task approved");
+            return saved;
         }
         return null;
     }
 
-    public void delete(String id, String userId) {
-        Task task = findByIdAndUserId(id, userId);
-        if (task != null) {
-            taskRepository.deleteById(id);
+    @CacheEvict(value = "tasks", key = "#id + ':' + #checkerId")
+    public Task reject(String id, String checkerId) {
+        Optional<Task> opt = taskRepository.findByIdAndDeletedFalse(id);
+        if (opt.isPresent() && opt.get().getApprovalStatus() == ApprovalStatus.PENDING) {
+            Task task = opt.get();
+            task.setApprovalStatus(ApprovalStatus.REJECTED);
+            task.setApprovedBy(checkerId);
+            task.setApprovedAt(java.time.LocalDateTime.now());
+            Task saved = taskRepository.save(task);
+            auditService.log(id, checkerId, TaskOperation.REJECT, ApprovalStatus.REJECTED, task.getTransactionId(), "Task rejected");
+            return saved;
+        }
+        return null;
+    }
+
+    private String hashTask(Task task) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            String data = task.getId() + task.getTitle() + task.getDescription() + task.getUserId();
+            byte[] hash = md.digest(data.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return "";
         }
     }
 }

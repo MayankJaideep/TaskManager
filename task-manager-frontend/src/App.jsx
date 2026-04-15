@@ -1,13 +1,20 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import TaskDashboard from './components/TaskDashboard';
+import PendingTasks from './components/PendingTasks';
 import './App.css';
+
+const CheckerRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user?.roles?.includes('ROLE_CHECKER')) return <Navigate to="/dashboard" replace />;
+  return children;
+};
 
 function App() {
   return (
@@ -22,6 +29,9 @@ function App() {
             
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<TaskDashboard />} />
+              <Route element={<CheckerRoute />}>
+                <Route path="/pending" element={<PendingTasks />} />
+              </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>
             

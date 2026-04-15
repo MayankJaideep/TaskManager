@@ -6,7 +6,8 @@ export default function TaskForm({ onSubmit, initialData }) {
         title: '',
         description: '',
         dueDate: '',
-        completed: false
+        completed: false,
+        status: initialData?.status || 'PENDING'
     });
 
     useEffect(() => {
@@ -65,6 +66,15 @@ export default function TaskForm({ onSubmit, initialData }) {
                             placeholder="Add details..."
                         />
                     </div>
+                </div>
+
+                <div className="form-group">
+                    <label>Status</label>
+                    <select name="status" value={task.status || 'PENDING'} onChange={handleChange} className="form-input" style={{flex: 1}}>
+                        <option value="PENDING">PENDING</option>
+                        <option value="IN_PROGRESS">IN PROGRESS</option>
+                        <option value="FINISHED">FINISHED</option>
+                    </select>
                 </div>
 
                 <div className="form-group">

@@ -16,7 +16,7 @@ public class JwtUtils {
     @Value("${taskmanager.app.jwtSecret:yourSecretKeyWhichShouldBeAtLeast32BytesLongToWorkWithHS256}")
     private String jwtSecret;
 
-    @Value("${taskmanager.app.jwtExpirationMs:900000}") // Default 15 minutes
+    @Value("${taskmanager.app.jwtExpirationMs:1800000}") // Default 30 minutes
     private int jwtExpirationMs;
 
     private SecretKey getSigningKey() {
