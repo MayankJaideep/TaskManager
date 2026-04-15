@@ -36,14 +36,27 @@ function TaskDashboard() {
   const handleCreateOrUpdate = async (taskData) => {
     try {
       if (editingTask) {
-        await api.put(`/tasks/${editingTask.id}`, taskData);
+        console.log("Updating task:", editingTask);
+
+        const payload = {
+          title: taskData.title,
+          description: taskData.description,
+          status: taskData.status
+        };
+
+        const res = await api.put(
+          `/tasks/${editingTask.id}`,
+          payload
+        );
+
+        console.log("Updated:", res.data);
         setEditingTask(null);
       } else {
         await api.post('/tasks', taskData);
       }
       fetchTasks();
     } catch (error) {
-      console.error("Error saving task:", error);
+      console.error("Update error:", error.response?.data || error.message);
     }
   };
 
@@ -76,8 +89,12 @@ function TaskDashboard() {
 
   const handleToggleComplete = async (task) => {
     try {
-      const updatedTask = { ...task, completed: !task.completed };
-      await api.put(`/tasks/${task.id}`, updatedTask);
+      const payload = {
+        title: task.title,
+        description: task.description,
+        status: task.status
+      };
+      await api.put(`/tasks/${task.id}`, payload);
       fetchTasks();
     } catch (error) {
       console.error("Error toggling completion:", error);

@@ -98,13 +98,16 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+        System.out.println("[AuthController.register] Attempting to register user: " + signUpRequest.getUsername());
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+            System.out.println("[AuthController.register] Username already exists: " + signUpRequest.getUsername());
             return ResponseEntity
                     .badRequest()
                     .body(new MessageResponse("Error: Username is already taken!"));
         }
 
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+            System.out.println("[AuthController.register] Email already in use: " + signUpRequest.getEmail());
             return ResponseEntity
                     .badRequest()
                     .body(new MessageResponse("Error: Email is already in use!"));
@@ -116,6 +119,7 @@ public class AuthController {
                 encoder.encode(signUpRequest.getPassword()));
 
         userRepository.save(user);
+        System.out.println("[AuthController.register] User saved successfully: " + signUpRequest.getUsername());
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }

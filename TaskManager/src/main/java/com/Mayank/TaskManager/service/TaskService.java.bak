@@ -55,6 +55,14 @@ public class TaskService {
         return new PageResponse<>(taskPage.getContent(), taskPage.getNumber(), taskPage.getSize(), taskPage.getTotalElements());
     }
 
+    @Cacheable(value = "tasks", key = "#userId + ':' + #page + ':' + #size")
+    public PageResponse<Task> findByUserIdAndDeletedFalse(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Task> taskPage = taskRepository.findByUserIdAndDeletedFalse(userId, pageable);
+        return new PageResponse<>(taskPage.getContent(), taskPage.getNumber(), taskPage.getSize(), taskPage.getTotalElements());
+    }
+
+    @CacheEvict(value = "tasks", allEntries = true)
     public Task create(Task task, String userId, String idempotencyKey) {
         System.out.println("[TaskService.create] userId: " + userId);
         if (idempotencyKey != null) {
@@ -66,6 +74,9 @@ public class TaskService {
         String transactionId = UUID.randomUUID().toString();
         task.setUserId(userId);
         task.setApprovalStatus(ApprovalStatus.PENDING);
+        if (task.getStatus() == null || task.getStatus().isEmpty()) {
+            task.setStatus("PENDING");
+        }
         task.setTransactionId(transactionId);
         Task saved = taskRepository.save(task);
         System.out.println("[TaskService.create] saved task with userId: " + saved.getUserId() + ", taskId: " + saved.getId());

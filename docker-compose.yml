@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: taskmanager-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: taskmanager
+
+  backend:
+    build: ./TaskManager
+    container_name: taskmanager-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+    environment:
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/taskmanager?authSource=admin
+      JWT_SECRET: mySuperSecretKeyForProduction12345678901234567890
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002
+    volumes:
+      - ./TaskManager/logs:/app/logs
+
+  frontend:
+    build: ./task-manager-frontend
+    container_name: taskmanager-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:8080/api
+
+volumes:
+  mongodb_data:
