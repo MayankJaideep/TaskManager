@@ -132,7 +132,7 @@ public class AuthController {
                     .map(RefreshToken::getUserId)
                     .map(userId -> {
                         User user = userRepository.findById(userId).orElseThrow();
-                        String token = jwtUtils.generateTokenFromUsername(user.getUsername());
+                        String token = jwtUtils.generateTokenFromUser(user);
                         
                         // Rotate refresh token
                         refreshTokenService.deleteByToken(requestRefreshToken);

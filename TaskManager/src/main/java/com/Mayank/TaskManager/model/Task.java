@@ -16,6 +16,8 @@ public class Task {
     private String description;
     private String status;
     private String approvalStatus;
+    private String userId;
+    private String ownerName;
 
     // Default constructor
     public Task() {}
@@ -59,5 +61,21 @@ public class Task {
 
     public void setApprovalStatus(String approvalStatus) {
         this.approvalStatus = approvalStatus;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
     }
 }

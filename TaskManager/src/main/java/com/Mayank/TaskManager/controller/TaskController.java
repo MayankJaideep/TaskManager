@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,13 +28,23 @@ public class TaskController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Task> tasks = taskRepository.findAll(pageable);
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        String userId = userDetails.getId();
+        
+        Page<Task> tasks = taskRepository.findByUserId(userId, pageable);
         return ResponseEntity.ok(tasks);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTask(@PathVariable String id) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        String userId = userDetails.getId();
+
         return taskRepository.findById(id)
+                .filter(task -> userId.equals(task.getUserId()))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -42,7 +54,12 @@ public class TaskController {
         try {
             System.out.println("Incoming task: " + task);
 
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
             task.setApprovalStatus("PENDING");
+            task.setUserId(userDetails.getId());
+            task.setOwnerName(userDetails.getUsername());
 
             Task saved = taskRepository.save(task);
 
@@ -62,8 +79,16 @@ public class TaskController {
         try {
             System.out.println("PUT called for ID: " + id);
 
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            String userId = userDetails.getId();
+
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
             Task existing = taskRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Task not found"));
+                    .filter(t -> isAdmin || userId.equals(t.getUserId()))
+                    .orElseThrow(() -> new RuntimeException("Task not found or you don't have permission"));
 
             existing.setTitle(updatedTask.getTitle());
             existing.setDescription(updatedTask.getDescription());
@@ -85,8 +110,16 @@ public class TaskController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteTask(@PathVariable String id) {
         try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            String userId = userDetails.getId();
+
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
             Task existing = taskRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Task not found"));
+                    .filter(t -> isAdmin || userId.equals(t.getUserId()))
+                    .orElseThrow(() -> new RuntimeException("Task not found or you don't have permission"));
 
             existing.setStatus("DELETED");
             existing.setApprovalStatus("PENDING");

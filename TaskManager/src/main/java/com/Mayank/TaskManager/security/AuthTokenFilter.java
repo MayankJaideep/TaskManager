@@ -31,9 +31,22 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         try {
             String jwt = parseJwt(request);
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                io.jsonwebtoken.Claims claims = jwtUtils.getClaimsFromJwtToken(jwt);
+                String userId = claims.get("id", String.class);
+                String username = claims.getSubject();
+                java.util.List<String> roles = claims.get("roles", java.util.List.class);
+                
+                java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities = roles.stream()
+                        .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                        .collect(java.util.stream.Collectors.toList());
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                UserDetailsImpl userDetails = new UserDetailsImpl(
+                        userId, 
+                        username, 
+                        claims.get("email", String.class), 
+                        "", 
+                        authorities);
+
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
