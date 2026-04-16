@@ -62,7 +62,14 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete, on
                     </label>
 
                     <div className="task-content" style={{marginLeft: '1rem'}}>
-                        <h3 className="task-title">{task.title}</h3>
+                        <h3 className="task-title">
+                            {task.title}
+                            {task.ownerName && user?.roles?.includes('ROLE_ADMIN') && (
+                                <span style={{fontSize: '0.8rem', color: 'var(--primary)', marginLeft: '0.5rem', fontWeight: 'normal'}}>
+                                    (by {task.ownerName})
+                                </span>
+                            )}
+                        </h3>
                         {task.description && <p className="task-desc">{task.description}</p>}
                         
                         <div className="task-meta" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>

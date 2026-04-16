@@ -22,7 +22,9 @@ function TaskDashboard() {
 
   const fetchTasks = async () => {
     try {
-      const response = await api.get('/tasks?page=0&size=20');
+      const isAdmin = user?.roles?.includes('ROLE_ADMIN');
+      const endpoint = isAdmin ? '/admin/tasks' : '/tasks';
+      const response = await api.get(`${endpoint}?page=0&size=20`);
       setTasks(response.data.content || []);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -114,7 +116,7 @@ function TaskDashboard() {
             <CheckCircle2 size={48} color="var(--primary)" />
             <h1>TaskFlow</h1>
           </div>
-          <p>Welcome back, {user?.username}!</p>
+          <p>Welcome back, {user?.username}! {user?.roles?.includes('ROLE_ADMIN') && <span style={{fontSize: '0.8rem', backgroundColor: '#e74c3c', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px'}}>Admin</span>}</p>
         </div>
         <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
           {user?.roles?.includes('ROLE_CHECKER') && (
@@ -129,13 +131,15 @@ function TaskDashboard() {
       </header>
 
       <main>
-        <TaskForm 
-          onSubmit={handleCreateOrUpdate} 
-          initialData={editingTask} 
-        />
+        {!user?.roles?.includes('ROLE_ADMIN') && (
+          <TaskForm 
+            onSubmit={handleCreateOrUpdate} 
+            initialData={editingTask} 
+          />
+        )}
         
         <h2 style={{marginTop: '3rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-          Your Tasks
+          {user?.roles?.includes('ROLE_ADMIN') ? 'All Tasks' : 'Your Tasks'}
           <span style={{fontSize: '0.9rem', padding: '0.2rem 0.6rem', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '1rem'}}>
             {tasks.length}
           </span>
