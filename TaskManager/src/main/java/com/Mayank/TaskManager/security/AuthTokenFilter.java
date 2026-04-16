@@ -34,30 +34,38 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 io.jsonwebtoken.Claims claims = jwtUtils.getClaimsFromJwtToken(jwt);
                 String userId = claims.get("id", String.class);
                 String username = claims.getSubject();
-                java.util.List<String> roles = claims.get("roles", java.util.List.class);
-                
+                Object rolesObj = claims.get("roles");
+                java.util.List<String> roles = new java.util.ArrayList<>();
+
+                if (rolesObj instanceof java.util.List) {
+                    roles = (java.util.List<String>) rolesObj;
+                } else if (rolesObj != null) {
+                    roles.add(rolesObj.toString());
+                }
+
                 java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities = roles.stream()
                         .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
                         .collect(java.util.stream.Collectors.toList());
 
                 UserDetailsImpl userDetails = new UserDetailsImpl(
-                        userId, 
-                        username, 
-                        claims.get("email", String.class), 
-                        "", 
+                        userId,
+                        username,
+                        claims.get("email", String.class),
+                        "",
                         authorities);
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                System.out.println("User authenticated via JWT: " + username + " with roles: " + roles);
             }
         } catch (Exception e) {
-            System.err.println("Cannot set user authentication: " + e);
+            System.err.println("Cannot set user authentication: " + e.getMessage());
+            e.printStackTrace();
         }
 
         filterChain.doFilter(request, response);

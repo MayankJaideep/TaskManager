@@ -33,7 +33,7 @@ public class TaskController {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String userId = userDetails.getId();
         
-        Page<Task> tasks = taskRepository.findByUserId(userId, pageable);
+        Page<Task> tasks = taskRepository.findByUserIdAndStatusNot(userId, "DELETED", pageable);
         return ResponseEntity.ok(tasks);
     }
 
@@ -58,6 +58,9 @@ public class TaskController {
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
             task.setApprovalStatus("PENDING");
+            if (task.getStatus() == null) {
+                task.setStatus("PENDING");
+            }
             task.setUserId(userDetails.getId());
             task.setOwnerName(userDetails.getUsername());
 
@@ -119,7 +122,7 @@ public class TaskController {
 
             Task existing = taskRepository.findById(id)
                     .filter(t -> isAdmin || userId.equals(t.getUserId()))
-                    .orElseThrow(() -> new RuntimeException("Task not found or you don't have permission"));
+                    .orElseThrow(() -> new RuntimeException("Task not found or permission denied (Admin=" + isAdmin + ")"));
 
             existing.setStatus("DELETED");
             existing.setApprovalStatus("PENDING");

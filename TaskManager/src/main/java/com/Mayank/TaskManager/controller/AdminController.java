@@ -30,12 +30,13 @@ public class AdminController {
     private PasswordEncoder encoder;
 
     @GetMapping("/tasks")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Page<Task>> getAllTasksForAdmin(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Task> tasks = taskRepository.findAll(pageable);
+        System.out.println("Admin fetching all tasks (excluding DELETED)");
+        Page<Task> tasks = taskRepository.findByStatusNot("DELETED", pageable);
         return ResponseEntity.ok(tasks);
     }
 

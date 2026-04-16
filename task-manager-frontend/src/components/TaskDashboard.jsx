@@ -94,7 +94,7 @@ function TaskDashboard() {
       const payload = {
         title: task.title,
         description: task.description,
-        status: task.status
+        status: task.status === 'FINISHED' ? 'PENDING' : 'FINISHED'
       };
       await api.put(`/tasks/${task.id}`, payload);
       fetchTasks();
@@ -131,7 +131,7 @@ function TaskDashboard() {
       </header>
 
       <main>
-        {!user?.roles?.includes('ROLE_ADMIN') && (
+        {(!user?.roles?.includes('ROLE_ADMIN') || editingTask) && (
           <TaskForm 
             onSubmit={handleCreateOrUpdate} 
             initialData={editingTask} 

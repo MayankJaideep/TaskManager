@@ -20,7 +20,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete, on
         return date.toLocaleString();
     };
 
-    const getStatusIcon = (status) => {
+    const getApprovalIcon = (status) => {
         switch (status) {
             case 'APPROVED':
                 return <CheckCircle size={16} color="green" />;
@@ -32,15 +32,28 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete, on
         }
     };
 
-    const getStatusBadge = (status) => {
+    const getApprovalBadge = (status) => {
         const color = {
             APPROVED: 'green',
             REJECTED: 'red',
             PENDING: 'orange'
         }[status] || 'gray';
         return (
-            <span className="badge" style={{ backgroundColor: `var(--${color})`, color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                {getStatusIcon(status)} {status}
+            <span className="badge" style={{ backgroundColor: `var(--${color})`, color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }} title="Approval Status">
+                Approval: {getApprovalIcon(status)} {status}
+            </span>
+        );
+    };
+
+    const getTaskStatusBadge = (status) => {
+        const color = {
+            FINISHED: 'var(--primary)',
+            IN_PROGRESS: '#3498db',
+            PENDING: 'gray'
+        }[status] || 'gray';
+        return (
+            <span className="badge" style={{ backgroundColor: color, color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }} title="Task Status">
+                {status}
             </span>
         );
     };
@@ -48,16 +61,16 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete, on
     return (
         <div className="task-list">
             {tasks.map(task => (
-                <div key={task.id} className={`glass-card task-item ${task.completed ? 'completed' : ''}`} style={{marginBottom: '0'}}>
+                <div key={task.id} className={`glass-card task-item ${task.status === 'FINISHED' ? 'completed' : ''}`} style={{marginBottom: '0'}}>
                     
                     <label className="checkbox-wrapper">
                         <input 
                             type="checkbox" 
-                            checked={task.completed} 
+                            checked={task.status === 'FINISHED'} 
                             onChange={() => onToggleComplete(task)} 
                         />
                         <div className="custom-checkbox">
-                            {task.completed && <Check size={14} color="white" strokeWidth={3} />}
+                            {task.status === 'FINISHED' && <Check size={14} color="white" strokeWidth={3} />}
                         </div>
                     </label>
 
@@ -73,7 +86,8 @@ export default function TaskList({ tasks, onEdit, onDelete, onToggleComplete, on
                         {task.description && <p className="task-desc">{task.description}</p>}
                         
                         <div className="task-meta" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>
-                            {getStatusBadge(task.approvalStatus)}
+                            {getTaskStatusBadge(task.status)}
+                            {getApprovalBadge(task.approvalStatus)}
                             {task.dueDate && (
                                 <span className="badge">
                                     <Calendar size={14} />
